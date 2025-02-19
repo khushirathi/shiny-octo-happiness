@@ -4,6 +4,7 @@ import { Environment } from './environment.interface';
 
 export const environment: Environment = {
     production: false,
+    apiKey: 'abcd',
     apiBaseUrl: 'http://localhost:3000/api',
     apiVersion: 'v1',
     auth: {
