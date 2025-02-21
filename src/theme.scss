@@ -1,0 +1,137 @@
+// Import material theming utilities
+@use '@angular/material' as mat;
+
+@use 'sass:map';
+
+// Import fonts
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lato:wght@400;700&display=swap');
+
+// Define base colors
+$primary-base: #0F5319;
+$secondary-base: #e8f5e9;
+
+// Create color palettes using Material's palette generator
+$custom-primary-palette: mat.m2-define-palette((
+  50: lighten($primary-base, 60%),
+  100: lighten($primary-base, 50%),
+  200: lighten($primary-base, 40%),
+  300: lighten($primary-base, 30%),
+  400: lighten($primary-base, 20%),
+  500: $primary-base,
+  600: darken($primary-base, 20%),
+  700: darken($primary-base, 30%),
+  800: darken($primary-base, 40%),
+  900: darken($primary-base, 50%),
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+  )
+));
+
+$custom-secondary-palette: mat.m2-define-palette((
+  50: lighten($secondary-base, 40%),
+  100: lighten($secondary-base, 30%),
+  200: lighten($secondary-base, 20%),
+  300: lighten($secondary-base, 10%),
+  400: $secondary-base,
+  500: darken($secondary-base, 10%),
+  600: darken($secondary-base, 20%),
+  700: darken($secondary-base, 30%),
+  800: darken($secondary-base, 40%),
+  900: darken($secondary-base, 50%),
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: rgba(black, 0.87),
+    500: rgba(black, 0.87),
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+  )
+));
+
+// Define typography config
+$custom-typography: mat.m2-define-typography-config(
+  $font-family: 'Inter, sans-serif',
+  $headline-1: mat.m2-define-typography-level(
+    $font-family: 'Lato, sans-serif',
+    $font-size: 3.5rem,
+    $line-height: 4rem,
+    $font-weight: 400,
+    $letter-spacing: -0.02em,
+  ),
+  $headline-2: mat.m2-define-typography-level(
+    $font-family: 'Lato, sans-serif',
+    $font-size: 2.5rem,
+    $line-height: 3rem,
+    $font-weight: 400,
+  ),
+  $body-1: mat.m2-define-typography-level(
+    $font-size: 1rem,
+    $line-height: 1.5rem,
+    $font-weight: 400,
+    $letter-spacing: 0.5px,
+  ),
+  $body-2: mat.m2-define-typography-level(
+    $font-size: 0.875rem,
+    $line-height: 1.25rem,
+    $font-weight: 400,
+  ),
+  $subtitle-1: mat.m2-define-typography-level(
+    $font-size: 1.125rem,
+    $line-height: 1.75rem,
+    $font-weight: 500,
+  ),
+  $button: mat.m2-define-typography-level(
+    $font-size: 0.875rem,
+    $line-height: 2.25rem,
+    $font-weight: 500,
+  ),
+  $caption: mat.m2-define-typography-level(
+    $font-size: 0.75rem,
+    $line-height: 1.25rem,
+    $font-weight: 400,
+  ),
+);
+
+// Create theme using Material's new theme system
+$theme: mat.m2-define-light-theme((
+  color: (
+    primary: $custom-primary-palette,
+    accent: $custom-secondary-palette,
+  ),
+  typography: $custom-typography,
+  density: 0,
+));
+
+// Include theme styles for Angular Material components
+@include mat.core();
+@include mat.all-component-themes($theme);
+
+// Custom CSS Variables
+:root {
+  // Primary color variations
+  --primary-color: #{mat.m2-get-color-from-palette($custom-primary-palette, 500)};
+  --primary-lighter: #{mat.m2-get-color-from-palette($custom-primary-palette, 100)};
+  --primary-darker: #{mat.m2-get-color-from-palette($custom-primary-palette, 700)};
+  
+  // Secondary color variations
+  --secondary-color: #{mat.m2-get-color-from-palette($custom-secondary-palette, 400)};
+  --secondary-lighter: #{mat.m2-get-color-from-palette($custom-secondary-palette, 100)};
+  --secondary-darker: #{mat.m2-get-color-from-palette($custom-secondary-palette, 700)};
+  
+  // Font families
+  --font-family-primary: 'Inter, sans-serif';
+  --font-family-secondary: 'Lato, sans-serif';
+}
