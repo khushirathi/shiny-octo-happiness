@@ -8,12 +8,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
 import * as XLSX from 'xlsx';
-import { EditOrganizationDialogComponent } from '../edit-organization-dialog/edit-organization-dialog.component';
-import { OrganizationService } from '../../services/organization/organization.service';
+import { LoggerService } from '../../services/logger/logger.service';
 
 export interface OrganizationData {
   id: string;
@@ -36,7 +34,6 @@ export interface OrganizationData {
     MatFormFieldModule,
     MatButtonModule,
     MatIconModule,
-    MatDialogModule,
     ReactiveFormsModule
   ],
   template: `
@@ -57,16 +54,6 @@ export interface OrganizationData {
 
       <!-- Table -->
       <mat-table [dataSource]="dataSource" matSort class="w-full">
-        <!-- Edit Column -->
-        <ng-container matColumnDef="edit">
-          <mat-header-cell *matHeaderCellDef> Edit </mat-header-cell>
-          <mat-cell *matCellDef="let row">
-            <button mat-icon-button color="primary" (click)="openEditDialog(row)">
-              <mat-icon>edit</mat-icon>
-            </button>
-          </mat-cell>
-        </ng-container>
-
         <!-- ID Column -->
         <ng-container matColumnDef="id">
           <mat-header-cell *matHeaderCellDef mat-sort-header> ID </mat-header-cell>
@@ -121,37 +108,37 @@ export class OrganizationTableComponent implements OnInit {
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatTable) table!: MatTable<OrganizationData>;
 
-  displayedColumns: string[] = ['edit', 'id', 'name', 'department', 'position', 'location', 'joinDate'];
+  displayedColumns: string[] = ['id', 'name', 'department', 'position', 'location', 'joinDate'];
   dataSource: MatTableDataSource<OrganizationData>;
   searchControl = new FormControl('');
 
-  constructor(private dialog: MatDialog) {
+  constructor(private logger: LoggerService) {
+    this.logger.debug('OrganizationTableComponent initialized');
+    
     // Sample data - replace with your actual data service
     const SAMPLE_DATA: OrganizationData[] = [
       { id: '1', name: 'John Doe', department: 'Engineering', position: 'Senior Developer', location: 'New York', joinDate: '2023-01-15' },
       { id: '2', name: 'Jane Smith', department: 'HR', position: 'HR Manager', location: 'London', joinDate: '2023-02-20' },
-      { id: '3', name: 'Alice Johnson', department: 'Marketing', position: 'Marketing Specialist', location: 'Los Angeles', joinDate: '2023-03-10' },
-      { id: '4', name: 'Bob Brown', department: 'Finance', position: 'Financial Analyst', location: 'Chicago', joinDate: '2023-04-05' },
-      { id: '5', name: 'Carol White', department: 'Engineering', position: 'Junior Developer', location: 'San Francisco', joinDate: '2023-05-12' },
-      { id: '6', name: 'David Miller', department: 'Product', position: 'Product Manager', location: 'Seattle', joinDate: '2023-06-18' },
-      { id: '7', name: 'Eva Wilson', department: 'Operations', position: 'Operations Director', location: 'Boston', joinDate: '2023-07-22' },
-      { id: '8', name: 'Frank Taylor', department: 'Sales', position: 'Sales Representative', location: 'Dallas', joinDate: '2023-08-30' },
-      { id: '9', name: 'Grace Lee', department: 'Customer Service', position: 'Support Specialist', location: 'Miami', joinDate: '2023-09-14' },
-      { id: '10', name: 'Henry Clark', department: 'IT', position: 'IT Administrator', location: 'Denver', joinDate: '2023-10-07' },
-      { id: '11', name: 'Irene Lopez', department: 'Legal', position: 'Legal Counsel', location: 'Washington DC', joinDate: '2023-11-19' },
+      // Add more sample data...
     ];
 
     this.dataSource = new MatTableDataSource(SAMPLE_DATA);
+    this.logger.debug('Data source created with sample data', { rowCount: SAMPLE_DATA.length });
   }
 
   ngOnInit() {
+    this.logger.debug('OrganizationTableComponent ngOnInit');
+    
     // Setup search filter
     this.searchControl.valueChanges.subscribe(value => {
       this.dataSource.filter = (value || '').trim().toLowerCase();
+      this.logger.debug('Search filter applied', { filterValue: value });
     });
   }
 
   ngAfterViewInit() {
+    this.logger.debug('OrganizationTableComponent ngAfterViewInit');
+    
     this.dataSource.sort = this.sort;
     this.dataSource.paginator = this.paginator;
 
@@ -162,36 +149,28 @@ export class OrganizationTableComponent implements OnInit {
     };
   }
 
-  openEditDialog(row: OrganizationData): void {
-    const dialogRef = this.dialog.open(EditOrganizationDialogComponent, {
-      width: '500px',
-      data: { ...row } // Pass a copy of the data to avoid direct references
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        // Find the index of the edited item
-        const index = this.dataSource.data.findIndex(item => item.id === result.id);
-        
-        // Update the data in the table
-        if (index > -1) {
-          const updatedData = [...this.dataSource.data];
-          updatedData[index] = result;
-          this.dataSource.data = updatedData;
-        }
-      }
-    });
-  }
-
   exportToExcel() {
-    // Create worksheet from data
-    const ws: XLSX.WorkSheet = XLSX.utils.json_to_sheet(this.dataSource.data);
+    this.logger.info('Starting Excel export');
     
-    // Create workbook and add worksheet
-    const wb: XLSX.WorkBook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Organization Data');
-    
-    // Save file
-    XLSX.writeFile(wb, 'organization-data.xlsx');
+    try {
+      // Create worksheet from data
+      const ws: XLSX.WorkSheet = XLSX.utils.json_to_sheet(this.dataSource.data);
+      
+      // Create workbook and add worksheet
+      const wb: XLSX.WorkBook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Organization Data');
+      
+      // Save file
+      XLSX.writeFile(wb, 'organization-data.xlsx');
+      
+      this.logger.info('Excel export completed successfully', { 
+        rows: this.dataSource.data.length, 
+        filename: 'organization-data.xlsx' 
+      });
+    } catch (error) {
+      this.logger.error('Excel export failed', error);
+      // Rethrow or handle as needed
+      throw error;
+    }
   }
 }

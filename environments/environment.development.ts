@@ -1,28 +1,12 @@
-// src/environments/environment.development.ts
-
-import { Environment } from './environment.interface';
-
-export const environment: Environment = {
+export const environment = {
     production: false,
     apiKey: 'abcd',
-    apiBaseUrl: 'http://localhost:3000/api',
-    apiVersion: 'v1',
-    auth: {
-        clientId: 'dev-client-id',
-        authority: 'https://dev-auth.example.com',
-        redirectUri: 'http://localhost:4200/callback'
-    },
-    features: {
-        enableAnalytics: false,
-        enableCache: true,
-        debugMode: true
-    },
+    logLevel: 'DEBUG',
+    remoteLoggingUrl: null,
     logging: {
-        level: 'debug',
-        enableRemoteLogging: false
-    },
-    cache: {
-        ttl: 300, // 5 minutes
-        maxSize: 10 // 10 MB
+      saveToFile: true,
+      logFilePath: 'logs/app.log',
+      maxLogFiles: 5,
+      maxLogSize: 10 * 1024 * 1024, // 10MB
     }
-}
+  };
