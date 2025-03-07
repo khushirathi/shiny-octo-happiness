@@ -1,7 +1,7 @@
 export const environment = {
     production: false,
     apiKey: 'abcd',
-    logLevel: 'DEBUG',
+    logLevel: 'TRACE',
     remoteLoggingUrl: null,
     logging: {
       saveToFile: true,

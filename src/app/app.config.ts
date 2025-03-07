@@ -13,6 +13,8 @@ export const DISABLE_LOGGING = new HttpContextToken<boolean>(() => false);
 
 // Custom error handler that uses the Logger service
 class GlobalErrorHandler implements ErrorHandler {
+  private readonly SOURCE = 'GlobalErrorHandler';
+  
   constructor(private logger: LoggerService) {}
 
   handleError(error: any): void {
@@ -22,7 +24,7 @@ class GlobalErrorHandler implements ErrorHandler {
     const name = error.name || 'Error';
     
     // Log the error with the logger service
-    this.logger.error(`${name}: ${message}`, { stack });
+    this.logger.error(`${this.SOURCE}.handleError`, `${name}: ${message}`, { stack });
     
     // You could also report to monitoring services like Sentry here
     
@@ -46,14 +48,26 @@ function initializeLogger(logger: LoggerService) {
       maxLogSize: (environment as any).logging?.maxLogSize
     };
     
+    // Enable all logging levels in local development
+    const isLocalDev = !environment.production && 
+                       typeof window !== 'undefined' && 
+                       window.location && 
+                       window.location.hostname === 'localhost';
+    const effectiveLogLevel = isLocalDev ? LogLevel.TRACE : logLevel;
+    
     // Handle null remoteLoggingUrl by passing undefined instead
     const remoteLoggingUrl = environment.remoteLoggingUrl || undefined;
     
-    logger.configure(logLevel, remoteLoggingUrl, options);
-    logger.info('Application initialized', { 
+    logger.configure(effectiveLogLevel, remoteLoggingUrl, options);
+    logger.info('AppInitializer.initialize', 'Application initialized', { 
       version: '1.0.0',
-      environment: environment.production ? 'production' : 'development'
+      environment: environment.production ? 'production' : 'development',
+      logLevel: LogLevel[effectiveLogLevel]
     });
+    
+    if (isLocalDev) {
+      console.log('%c🔍 DEBUG LOGGING ENABLED FOR LOCAL DEVELOPMENT 🔍', 'background: #4CAF50; color: white; font-size: 12px; padding: 4px;');
+    }
   };
 }
 
@@ -73,49 +87,40 @@ const loggingInterceptor = (req: HttpRequest<unknown>, next: HttpHandlerFn): Obs
     return next(req);
   }
   
-  // Log the request
-  logger.debug(
-    `HTTP Request ${requestId}: ${req.method} ${req.url}`, 
-    {
-      method: req.method,
-      url: req.url,
-      headers: getSafeHeaders(req.headers),
-      params: req.params.toString()
-    }
-  );
+  // Log the request with HTTP source
+  logger.debug('HTTP.request', `Request ${requestId}: ${req.method} ${req.url}`, {
+    method: req.method,
+    url: req.url,
+    headers: getSafeHeaders(req.headers),
+    params: req.params.toString()
+  });
   
   return next(req).pipe(
     tap(event => {
       if (event.type === 4) { // HttpEventType.Response = 4
         const elapsedTime = Date.now() - startTime;
         
-        // Log the response
-        logger.debug(
-          `HTTP Response ${requestId}: ${event.status} (${elapsedTime}ms)`,
-          {
-            status: event.status,
-            statusText: event.statusText,
-            url: event.url,
-            elapsedTime
-          }
-        );
+        // Log the response with HTTP source
+        logger.debug('HTTP.response', `Response ${requestId}: ${event.status} (${elapsedTime}ms)`, {
+          status: event.status,
+          statusText: event.statusText,
+          url: event.url,
+          elapsedTime
+        });
       }
     }),
     catchError(error => {
       const elapsedTime = Date.now() - startTime;
       
-      // Log the error
-      logger.error(
-        `HTTP Error ${requestId}: ${error.status} ${error.statusText} (${elapsedTime}ms)`,
-        {
-          status: error.status,
-          statusText: error.statusText,
-          url: error.url,
-          elapsedTime,
-          message: error.message,
-          error: error.error
-        }
-      );
+      // Log the error with HTTP source
+      logger.error('HTTP.error', `Error ${requestId}: ${error.status} ${error.statusText} (${elapsedTime}ms)`, {
+        status: error.status,
+        statusText: error.statusText,
+        url: error.url,
+        elapsedTime,
+        message: error.message,
+        error: error.error
+      });
       
       return throwError(() => error);
     })

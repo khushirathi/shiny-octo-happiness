@@ -13,7 +13,7 @@ import { MatTableDataSource } from '@angular/material/table';
 import * as XLSX from 'xlsx';
 import { LoggerService } from '../../services/logger/logger.service';
 
-export interface OrganizationData {
+interface OrganizationData {
   id: string;
   name: string;
   department: string;
@@ -108,12 +108,15 @@ export class OrganizationTableComponent implements OnInit {
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatTable) table!: MatTable<OrganizationData>;
 
+  // Define source constant for logging
+  private readonly SOURCE = 'OrganizationTableComponent';
+
   displayedColumns: string[] = ['id', 'name', 'department', 'position', 'location', 'joinDate'];
   dataSource: MatTableDataSource<OrganizationData>;
   searchControl = new FormControl('');
 
   constructor(private logger: LoggerService) {
-    this.logger.debug('OrganizationTableComponent initialized');
+    this.logger.debug(`${this.SOURCE}.constructor`, 'Component initialized');
     
     // Sample data - replace with your actual data service
     const SAMPLE_DATA: OrganizationData[] = [
@@ -123,21 +126,25 @@ export class OrganizationTableComponent implements OnInit {
     ];
 
     this.dataSource = new MatTableDataSource(SAMPLE_DATA);
-    this.logger.debug('Data source created with sample data', { rowCount: SAMPLE_DATA.length });
+    this.logger.debug(`${this.SOURCE}.constructor`, 'Data source created with sample data', { 
+      rowCount: SAMPLE_DATA.length 
+    });
   }
 
   ngOnInit() {
-    this.logger.debug('OrganizationTableComponent ngOnInit');
+    this.logger.debug(`${this.SOURCE}.ngOnInit`, 'Component initialization');
     
     // Setup search filter
     this.searchControl.valueChanges.subscribe(value => {
       this.dataSource.filter = (value || '').trim().toLowerCase();
-      this.logger.debug('Search filter applied', { filterValue: value });
+      this.logger.debug(`${this.SOURCE}.ngOnInit`, 'Search filter applied', { 
+        filterValue: value 
+      });
     });
   }
 
   ngAfterViewInit() {
-    this.logger.debug('OrganizationTableComponent ngAfterViewInit');
+    this.logger.debug(`${this.SOURCE}.ngAfterViewInit`, 'View initialized');
     
     this.dataSource.sort = this.sort;
     this.dataSource.paginator = this.paginator;
@@ -150,7 +157,7 @@ export class OrganizationTableComponent implements OnInit {
   }
 
   exportToExcel() {
-    this.logger.info('Starting Excel export');
+    this.logger.info(`${this.SOURCE}.exportToExcel`, 'Starting Excel export');
     
     try {
       // Create worksheet from data
@@ -163,12 +170,14 @@ export class OrganizationTableComponent implements OnInit {
       // Save file
       XLSX.writeFile(wb, 'organization-data.xlsx');
       
-      this.logger.info('Excel export completed successfully', { 
+      this.logger.info(`${this.SOURCE}.exportToExcel`, 'Excel export completed successfully', { 
         rows: this.dataSource.data.length, 
         filename: 'organization-data.xlsx' 
       });
     } catch (error) {
-      this.logger.error('Excel export failed', error);
+      this.logger.error(`${this.SOURCE}.exportToExcel`, 'Excel export failed', 
+        error
+      );
       // Rethrow or handle as needed
       throw error;
     }

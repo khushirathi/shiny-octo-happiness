@@ -5,6 +5,7 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, catchError, throwError } from 'rxjs';
 import { NewsApiResponse, NewsQueryParams } from './news.interface';
 import { environment } from '../../../../environments/environment';
+import { LoggerService } from '../logger/logger.service';
 
 @Injectable({
     providedIn: 'root'
@@ -12,7 +13,16 @@ import { environment } from '../../../../environments/environment';
 export class NewsService {
     private readonly apiUrl = 'https://newsapi.org/v2/everything';
     private readonly headers = new HttpHeaders().set('X-Api-Key', environment.apiKey);
-    private http = inject(HttpClient);
+    private readonly SERVICE_NAME = 'NewsService';
+
+    //private http = inject(HttpClient);
+
+    constructor(
+        private http: HttpClient,
+        private logger: LoggerService
+      ) {
+        this.logger.debug(`${this.SERVICE_NAME}.constructor`, 'initialized', { apiUrl: this.apiUrl });
+      }
 
     getArticles(queryParams: NewsQueryParams): Observable<NewsApiResponse> {
         let params = new HttpParams()

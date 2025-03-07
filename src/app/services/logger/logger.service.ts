@@ -19,8 +19,7 @@ export interface LogEntry {
   level: LogLevel;
   timestamp: Date;
   additionalInfo?: any;
-  fileName?: string;
-  lineNumber?: number;
+  source?: string;  // Added back for explicit source tracking
 }
 
 @Injectable({
@@ -92,23 +91,20 @@ export class LoggerService {
    */
   private initializeIndexedDB(): void {
     const self = this; // Store this reference for callbacks
-    const request = indexedDB.open('AppLogs', 2); // Use version 2 for updated schema
+    const request = indexedDB.open('AppLogs', 1); // Simplified to version 1
     
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
       
-      // Create or update logs store for individual log entries
-      if (!db.objectStoreNames.contains('logs')) {
-        const store = db.createObjectStore('logs', { keyPath: 'timestamp' });
-        store.createIndex('level', 'level', { unique: false });
-        store.createIndex('date', 'date', { unique: false });
-      }
+      // Create logs store for individual log entries
+      const store = db.createObjectStore('logs', { keyPath: 'timestamp' });
+      store.createIndex('level', 'level', { unique: false });
+      store.createIndex('date', 'date', { unique: false });
+      store.createIndex('source', 'source', { unique: false }); // Added back for filtering
       
-      // Create or update logFiles store for complete log files
-      if (!db.objectStoreNames.contains('logFiles')) {
-        const filesStore = db.createObjectStore('logFiles', { keyPath: 'name' });
-        filesStore.createIndex('lastModified', 'lastModified', { unique: false });
-      }
+      // Create logFiles store for complete log files
+      const filesStore = db.createObjectStore('logFiles', { keyPath: 'name' });
+      filesStore.createIndex('lastModified', 'lastModified', { unique: false });
     };
     
     request.onsuccess = (event) => {
@@ -122,56 +118,62 @@ export class LoggerService {
   
   /**
    * Logs a trace message
+   * @param source Source of the log (e.g., 'ServiceName.methodName')
    * @param message Message to log
    * @param additionalInfo Any additional information to include
    */
-  trace(message: string, additionalInfo?: any): void {
-    this.log(LogLevel.TRACE, message, additionalInfo);
+  trace(source: string, message: string, additionalInfo?: any): void {
+    this.log(LogLevel.TRACE, message, additionalInfo, source);
   }
   
   /**
    * Logs a debug message
+   * @param source Source of the log (e.g., 'ServiceName.methodName')
    * @param message Message to log
    * @param additionalInfo Any additional information to include
    */
-  debug(message: string, additionalInfo?: any): void {
-    this.log(LogLevel.DEBUG, message, additionalInfo);
+  debug(source: string, message: string, additionalInfo?: any): void {
+    this.log(LogLevel.DEBUG, message, additionalInfo, source);
   }
   
   /**
    * Logs an info message
+   * @param source Source of the log (e.g., 'ServiceName.methodName')
    * @param message Message to log
    * @param additionalInfo Any additional information to include
    */
-  info(message: string, additionalInfo?: any): void {
-    this.log(LogLevel.INFO, message, additionalInfo);
+  info(source: string, message: string, additionalInfo?: any): void {
+    this.log(LogLevel.INFO, message, additionalInfo, source);
   }
   
   /**
    * Logs a warning message
+   * @param source Source of the log (e.g., 'ServiceName.methodName')
    * @param message Message to log
    * @param additionalInfo Any additional information to include
    */
-  warn(message: string, additionalInfo?: any): void {
-    this.log(LogLevel.WARN, message, additionalInfo);
+  warn(source: string, message: string, additionalInfo?: any): void {
+    this.log(LogLevel.WARN, message, additionalInfo, source);
   }
   
   /**
    * Logs an error message
+   * @param source Source of the log (e.g., 'ServiceName.methodName')
    * @param message Message to log
    * @param additionalInfo Any additional information to include
    */
-  error(message: string, error?: any): void {
-    this.log(LogLevel.ERROR, message, error);
+  error(source: string, message: string, additionalInfo?: any): void {
+    this.log(LogLevel.ERROR, message, additionalInfo, source);
   }
   
   /**
    * Logs a fatal error message
+   * @param source Source of the log (e.g., 'ServiceName.methodName')
    * @param message Message to log
    * @param additionalInfo Any additional information to include
    */
-  fatal(message: string, error?: any): void {
-    this.log(LogLevel.FATAL, message, error);
+  fatal(source: string, message: string, additionalInfo?: any): void {
+    this.log(LogLevel.FATAL, message, additionalInfo, source);
   }
   
   /**
@@ -179,15 +181,18 @@ export class LoggerService {
    * @param level Log level
    * @param message Message to log
    * @param additionalInfo Any additional information to include
+   * @param source Source of the log (e.g., 'ServiceName.methodName')
    */
-  private log(level: LogLevel, message: string, additionalInfo?: any): void {
+  private log(level: LogLevel, message: string, additionalInfo?: any, source?: string): void {
     // Only log if the level is appropriate
     if (this.shouldLog(level)) {
+      // Create log entry with source information
       const entry: LogEntry = {
         message,
         level,
         timestamp: new Date(),
-        additionalInfo
+        additionalInfo,
+        source
       };
       
       // Log to console
@@ -217,25 +222,39 @@ export class LoggerService {
     const color = this.getColorForLevel(entry.level);
     const timestamp = entry.timestamp.toISOString();
     const levelName = LogLevel[entry.level];
+    const source = entry.source ? `[${entry.source}]` : '';
     
-    // Format: [TIMESTAMP] [LEVEL] Message
-    const formattedMessage = `[${timestamp}] [${levelName}] ${entry.message}`;
+    // Format: [TIMESTAMP] [LEVEL] [SOURCE] Message
+    const formattedMessage = `[${timestamp}] [${levelName}] ${source} ${entry.message}`;
     
-    switch (entry.level) {
-      case LogLevel.TRACE:
-      case LogLevel.DEBUG:
-        console.debug(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
-        break;
-      case LogLevel.INFO:
-        console.info(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
-        break;
-      case LogLevel.WARN:
-        console.warn(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
-        break;
-      case LogLevel.ERROR:
-      case LogLevel.FATAL:
-        console.error(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
-        break;
+    // Force console.debug to be visible in development mode by using console.log instead
+    const isLocalDev = !environment.production && this.isBrowser && 
+                      (typeof window !== 'undefined') && 
+                      window.location && 
+                      window.location.hostname === 'localhost';
+    
+    // Use appropriate console methods based on level and environment
+    if ((entry.level === LogLevel.DEBUG || entry.level === LogLevel.TRACE) && isLocalDev) {
+      // Use console.log for debug/trace in local dev to ensure visibility
+      console.log(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
+    } else {
+      // Use standard console methods for other cases
+      switch (entry.level) {
+        case LogLevel.TRACE:
+        case LogLevel.DEBUG:
+          console.debug(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
+          break;
+        case LogLevel.INFO:
+          console.info(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
+          break;
+        case LogLevel.WARN:
+          console.warn(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
+          break;
+        case LogLevel.ERROR:
+        case LogLevel.FATAL:
+          console.error(`%c${formattedMessage}`, `color: ${color}`, entry.additionalInfo);
+          break;
+      }
     }
     
     // Save log to file if enabled (for local development)
@@ -343,10 +362,12 @@ export class LoggerService {
         
         // Also store individual log entries for querying
         for (const entry of logsToWrite) {
-          // Add date string for easier querying
+          // Add date string for easier querying and include source info
           const logRecord = {
             ...entry,
-            date: entry.timestamp.toISOString().slice(0, 10)
+            date: entry.timestamp.toISOString().slice(0, 10),
+            // Ensure source is included for filtering
+            source: entry.source || 'unknown'
           };
           
           logsStore.add(logRecord);
@@ -366,23 +387,20 @@ export class LoggerService {
   private initializeIndexedDBPromise(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        const request = indexedDB.open('AppLogs', 2); // Increased version for new schema
+        const request = indexedDB.open('AppLogs', 1); // Match version with main initialization
         
         request.onupgradeneeded = (event) => {
           const db = (event.target as IDBOpenDBRequest).result;
           
-          // Create or update logs store
-          if (!db.objectStoreNames.contains('logs')) {
-            const store = db.createObjectStore('logs', { keyPath: 'timestamp' });
-            store.createIndex('level', 'level', { unique: false });
-            store.createIndex('date', 'date', { unique: false });
-          }
+          // Create logs store
+          const store = db.createObjectStore('logs', { keyPath: 'timestamp' });
+          store.createIndex('level', 'level', { unique: false });
+          store.createIndex('date', 'date', { unique: false });
+          store.createIndex('source', 'source', { unique: false }); // Added back for filtering
           
-          // Create or update logFiles store for complete log files
-          if (!db.objectStoreNames.contains('logFiles')) {
-            const filesStore = db.createObjectStore('logFiles', { keyPath: 'name' });
-            filesStore.createIndex('lastModified', 'lastModified', { unique: false });
-          }
+          // Create logFiles store
+          const filesStore = db.createObjectStore('logFiles', { keyPath: 'name' });
+          filesStore.createIndex('lastModified', 'lastModified', { unique: false });
         };
         
         request.onsuccess = (event) => {
