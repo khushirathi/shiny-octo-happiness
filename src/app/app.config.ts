@@ -38,14 +38,15 @@ class GlobalErrorHandler implements ErrorHandler {
 // Factory function to initialize the logger
 function initializeLogger(logger: LoggerService) {
   return () => {
+    const logging = environment.logging || {};
     // Convert string log level from environment to enum
-    const logLevel = LogLevel[environment.logLevel as keyof typeof LogLevel];
+    const logLevel = LogLevel[(logging.level || 'INFO') as keyof typeof LogLevel];
     
     // Configure additional logging options
     const options = {
-      saveToFile: (environment as any).logging?.saveToFile,
-      maxLogFiles: (environment as any).logging?.maxLogFiles,
-      maxLogSize: (environment as any).logging?.maxLogSize
+      saveToFile: logging.saveToFile,
+      maxLogFiles: logging.maxLogFiles,
+      maxLogSize: logging.maxLogSize
     };
     
     // Enable all logging levels in local development
@@ -56,7 +57,7 @@ function initializeLogger(logger: LoggerService) {
     const effectiveLogLevel = isLocalDev ? LogLevel.TRACE : logLevel;
     
     // Handle null remoteLoggingUrl by passing undefined instead
-    const remoteLoggingUrl = environment.remoteLoggingUrl || undefined;
+    const remoteLoggingUrl = logging.remoteLoggingUrl || undefined;
     
     logger.configure(effectiveLogLevel, remoteLoggingUrl, options);
     logger.info('AppInitializer.initialize', 'Application initialized', { 

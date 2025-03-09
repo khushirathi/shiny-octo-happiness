@@ -27,10 +27,10 @@ export interface LogEntry {
 })
 export class LoggerService {
   private logLevel: LogLevel = environment.production ? LogLevel.WARN : LogLevel.DEBUG;
-  private remoteLoggingUrl: string | null = environment.remoteLoggingUrl || null;
-  private saveToFile: boolean = (environment as any).logging?.saveToFile || false;
-  private maxLogFiles: number = (environment as any).logging?.maxLogFiles || 5;
-  private maxLogSize: number = (environment as any).logging?.maxLogSize || 10 * 1024 * 1024; // 10MB
+  private remoteLoggingUrl: string | null = environment.logging?.remoteLoggingUrl || null;
+  private saveToFile: boolean = environment.logging?.saveToFile || false;
+  private maxLogFiles: number = environment.logging?.maxLogFiles || 5;
+  private maxLogSize: number = environment.logging?.maxLogSize || 10 * 1024 * 1024; // 10MB
   private isBrowser: boolean;
   private fileSystem: any;
   private pendingLogs: LogEntry[] = [];
