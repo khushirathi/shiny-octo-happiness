@@ -1,6 +1,7 @@
 export const environment = {
     production: false,
     apiKey: 'abcd',
+    apiBaseUrl: 'https://api.example.com/v1',
     logging: {
       level: 'TRACE',
       remoteLoggingUrl: null,

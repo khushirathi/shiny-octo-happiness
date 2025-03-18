@@ -1,7 +1,7 @@
 // features/organization/services/organization.service.ts
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { OrganizationData } from '../../components/organization-table/organization-table.component';
+import { OrganizationData } from '../organization-data/organization-data.service';
 
 @Injectable({
   providedIn: 'root'

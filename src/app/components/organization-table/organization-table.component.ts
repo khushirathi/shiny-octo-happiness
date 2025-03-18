@@ -1,5 +1,5 @@
 // features/organization/components/organization-table/organization-table.component.ts
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule, MatTable } from '@angular/material/table';
 import { MatSortModule, MatSort } from '@angular/material/sort';
@@ -8,19 +8,15 @@ import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
 import * as XLSX from 'xlsx';
-import { LoggerService } from '../../services/logger/logger.service';
+import { finalize, catchError, of } from 'rxjs';
+import { OrganizationData, OrganizationDataService } from '../../services/organization-data/organization-data.service';
 
-interface OrganizationData {
-  id: string;
-  name: string;
-  department: string;
-  position: string;
-  location: string;
-  joinDate: string;
-}
+import { NotificationService } from '../../services/notification/notification.service';
 
 @Component({
   selector: 'app-organization-table',
@@ -34,6 +30,8 @@ interface OrganizationData {
     MatFormFieldModule,
     MatButtonModule,
     MatIconModule,
+    MatProgressSpinnerModule,
+    MatSnackBarModule,
     ReactiveFormsModule
   ],
   template: `
@@ -46,14 +44,50 @@ interface OrganizationData {
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
 
-        <button mat-raised-button color="primary" (click)="exportToExcel()">
+        <button mat-raised-button color="primary" (click)="exportToExcel()" [disabled]="loading || hasError">
           <mat-icon class="mr-2">download</mat-icon>
           Export to Excel
         </button>
       </div>
 
+      <!-- Loading indicator -->
+      <div *ngIf="loading" class="flex justify-center items-center p-10">
+        <mat-spinner diameter="50"></mat-spinner>
+      </div>
+
+      <!-- Error message -->
+      <div *ngIf="hasError" class="bg-red-50 border border-red-300 text-red-700 p-4 rounded-md mb-4">
+        <div class="flex">
+          <mat-icon class="text-red-500 mr-3">error</mat-icon>
+          <div>
+            <h3 class="text-lg font-medium">Error loading organization data</h3>
+            <p>{{ errorMessage }}</p>
+            <div class="mt-3">
+              <button 
+                mat-stroked-button 
+                color="primary" 
+                (click)="loadData()"
+                class="mr-2">
+                <mat-icon class="mr-1">refresh</mat-icon>
+                Try Again
+              </button>
+              <button 
+                mat-button 
+                (click)="hasError = false; errorMessage = ''">
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Table -->
-      <mat-table [dataSource]="dataSource" matSort class="w-full">
+      <mat-table 
+        [dataSource]="dataSource" 
+        matSort 
+        class="w-full"
+        *ngIf="!loading && !hasError">
+        
         <!-- ID Column -->
         <ng-container matColumnDef="id">
           <mat-header-cell *matHeaderCellDef mat-sort-header> ID </mat-header-cell>
@@ -94,8 +128,15 @@ interface OrganizationData {
         <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>
       </mat-table>
 
+      <!-- Empty state -->
+      <div *ngIf="!loading && !hasError && dataSource.data.length === 0" class="text-center p-10">
+        <mat-icon class="text-gray-400 text-5xl mb-3">folder_open</mat-icon>
+        <p class="text-gray-500">No organization data found</p>
+      </div>
+
       <!-- Paginator -->
       <mat-paginator 
+        *ngIf="!loading && !hasError && dataSource.data.length > 0"
         [pageSize]="10"
         [pageSizeOptions]="[5, 10, 25, 100]"
         class="mt-4">
@@ -108,57 +149,86 @@ export class OrganizationTableComponent implements OnInit {
   @ViewChild(MatPaginator) paginator!: MatPaginator;
   @ViewChild(MatTable) table!: MatTable<OrganizationData>;
 
-  // Define source constant for logging
-  private readonly SOURCE = 'OrganizationTableComponent';
-
   displayedColumns: string[] = ['id', 'name', 'department', 'position', 'location', 'joinDate'];
-  dataSource: MatTableDataSource<OrganizationData>;
+  dataSource = new MatTableDataSource<OrganizationData>([]);
   searchControl = new FormControl('');
+  
+  loading = false;
+  hasError = false;
+  errorMessage = '';
 
-  constructor(private logger: LoggerService) {
-    this.logger.debug(`${this.SOURCE}.constructor`, 'Component initialized');
-    
-    // Sample data - replace with your actual data service
-    const SAMPLE_DATA: OrganizationData[] = [
-      { id: '1', name: 'John Doe', department: 'Engineering', position: 'Senior Developer', location: 'New York', joinDate: '2023-01-15' },
-      { id: '2', name: 'Jane Smith', department: 'HR', position: 'HR Manager', location: 'London', joinDate: '2023-02-20' },
-      // Add more sample data...
-    ];
-
-    this.dataSource = new MatTableDataSource(SAMPLE_DATA);
-    this.logger.debug(`${this.SOURCE}.constructor`, 'Data source created with sample data', { 
-      rowCount: SAMPLE_DATA.length 
-    });
-  }
+  private organizationService = inject(OrganizationDataService);
+  private notificationService = inject(NotificationService);
 
   ngOnInit() {
-    this.logger.debug(`${this.SOURCE}.ngOnInit`, 'Component initialization');
-    
     // Setup search filter
     this.searchControl.valueChanges.subscribe(value => {
       this.dataSource.filter = (value || '').trim().toLowerCase();
-      this.logger.debug(`${this.SOURCE}.ngOnInit`, 'Search filter applied', { 
-        filterValue: value 
-      });
     });
+
+    // Load data on component initialization
+    this.loadData();
   }
 
   ngAfterViewInit() {
-    this.logger.debug(`${this.SOURCE}.ngAfterViewInit`, 'View initialized');
-    
-    this.dataSource.sort = this.sort;
-    this.dataSource.paginator = this.paginator;
-
-    // Custom filter predicate to search all columns
-    this.dataSource.filterPredicate = (data: OrganizationData, filter: string) => {
-      const dataStr = Object.values(data).join(' ').toLowerCase();
-      return dataStr.indexOf(filter) != -1;
-    };
+    this.setupTable();
   }
 
+  /**
+   * Setup table sorting, pagination and filtering
+   */
+  private setupTable(): void {
+    if (this.dataSource.data.length > 0) {
+      this.dataSource.sort = this.sort;
+      this.dataSource.paginator = this.paginator;
+
+      // Custom filter predicate to search all columns
+      this.dataSource.filterPredicate = (data: OrganizationData, filter: string) => {
+        const dataStr = Object.values(data).join(' ').toLowerCase();
+        return dataStr.indexOf(filter) != -1;
+      };
+    }
+  }
+
+  /**
+   * Load organization data from service
+   */
+  loadData(): void {
+    this.loading = true;
+    this.hasError = false;
+    this.errorMessage = '';
+
+    this.organizationService.getOrganizationData()
+      .pipe(
+        catchError(error => {
+          this.hasError = true;
+          this.errorMessage = error.message || 'Failed to load organization data';
+          this.notificationService.showError('Error loading organization data');
+          return of([]);
+        }),
+        finalize(() => {
+          this.loading = false;
+        })
+      )
+      .subscribe({
+        next: (data) => {
+          this.dataSource.data = data;
+          // Setup table again after data is loaded
+          setTimeout(() => {
+            this.setupTable();
+          });
+        }
+      });
+  }
+
+  /**
+   * Export table data to Excel
+   */
   exportToExcel() {
-    this.logger.info(`${this.SOURCE}.exportToExcel`, 'Starting Excel export');
-    
+    if (this.loading || this.hasError || this.dataSource.data.length === 0) {
+      return;
+    }
+
     try {
       // Create worksheet from data
       const ws: XLSX.WorkSheet = XLSX.utils.json_to_sheet(this.dataSource.data);
@@ -170,16 +240,10 @@ export class OrganizationTableComponent implements OnInit {
       // Save file
       XLSX.writeFile(wb, 'organization-data.xlsx');
       
-      this.logger.info(`${this.SOURCE}.exportToExcel`, 'Excel export completed successfully', { 
-        rows: this.dataSource.data.length, 
-        filename: 'organization-data.xlsx' 
-      });
+      this.notificationService.showSuccess('Organization data exported successfully');
     } catch (error) {
-      this.logger.error(`${this.SOURCE}.exportToExcel`, 'Excel export failed', 
-        error
-      );
-      // Rethrow or handle as needed
-      throw error;
+      this.notificationService.showError('Failed to export data');
+      console.error('Export error:', error);
     }
   }
 }

@@ -1,1 +1,50 @@
-/* You can add global styles to this file, and also import other style files */
+@use './snackbar-theme';
+
+/* styles/notifications.scss */
+/* Add this to your global styles.scss file */
+
+/* Target the actual snackbar container with higher specificity */
+/* .mat-mdc-snack-bar-container {
+  &.success-snackbar {
+    --mdc-snackbar-container-color: #4caf50;
+    
+    .mat-mdc-snack-bar-surface {
+      background-color: #4caf50 !important;
+    }
+  }
+  
+  &.error-snackbar {
+    --mdc-snackbar-container-color: #f44336;
+    
+    .mat-mdc-snack-bar-surface {
+      background-color: #f44336 !important;
+    }
+  }
+  
+  &.warning-snackbar {
+    --mdc-snackbar-container-color: #ff9800;
+    
+    .mat-mdc-snack-bar-surface {
+      background-color: #ff9800 !important;
+    }
+  }
+  
+  &.info-snackbar {
+    --mdc-snackbar-container-color: #2196f3;
+    
+    .mat-mdc-snack-bar-surface {
+      background-color: #2196f3 !important;
+    }
+  }
+}
+
+/* Set text color for all snackbars */
+/* .mat-mdc-snack-bar-container .mdc-snackbar__surface {
+  color: white !important;
+}
+
+/* Make the action buttons stand out more */
+/*.mat-mdc-snack-bar-container .mat-mdc-button.mat-mdc-snack-bar-action {
+  color: white !important;
+  font-weight: bold !important;
+} */
